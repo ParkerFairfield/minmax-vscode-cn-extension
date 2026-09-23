@@ -4,10 +4,13 @@ import { AVAILABLE_MODELS, MODEL_IDS } from "../shared/models";
 
 export { AVAILABLE_MODELS, MODEL_IDS };
 
+// China-platform keys only authenticate against the China host; api.minimax.io returns 401.
+export const MINIMAX_BASE_URL = "https://api.minimax.cn/v1";
+
 export function createClient(apiKey: string): OpenAI {
   return new OpenAI({
     apiKey,
-    baseURL: "https://api.minimax.io/v1",
+    baseURL: MINIMAX_BASE_URL,
   });
 }
 
@@ -28,7 +31,7 @@ interface CodingPlanRemainsResponse {
 
 export async function fetchCodingPlanRemains(apiKey: string): Promise<QuotaInfo | null> {
   try {
-    const res = await fetch("https://api.minimax.io/v1/coding_plan/remains", {
+    const res = await fetch(`${MINIMAX_BASE_URL}/coding_plan/remains`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
     if (!res.ok) return null;
@@ -90,6 +93,7 @@ export async function streamChat(
   let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   let finishReason = "";
   let chunkCount = 0;
+  let errored = false;
 
   try {
     const hasTools = tools && tools.length > 0;
@@ -189,12 +193,14 @@ export async function streamChat(
     if (err.name === "AbortError") {
       // Cancelled by user
     } else {
-      callbacks.onError?.(err instanceof Error ? err : new Error(String(err)));
+      errored = true;
+      const status = err?.status ? `HTTP ${err.status} ` : "";
+      callbacks.onError?.(new Error(`${status}${err?.message ?? String(err)} (host: ${MINIMAX_BASE_URL}, model: ${model})`));
     }
   }
 
   // Detect completely empty responses
-  if (chunkCount === 0 && !content && toolCallsMap.size === 0) {
+  if (!errored && chunkCount === 0 && !content && toolCallsMap.size === 0) {
     callbacks.onError?.(new Error("No response received from API (0 chunks)"));
   }
 

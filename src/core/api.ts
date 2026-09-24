@@ -5,7 +5,27 @@ import { AVAILABLE_MODELS, MODEL_IDS } from "../shared/models";
 export { AVAILABLE_MODELS, MODEL_IDS };
 
 // China-platform keys only authenticate against the China host; api.minimax.io returns 401.
-export const MINIMAX_BASE_URL = "https://api.minimax.cn/v1";
+//
+// HEADROOM-aware routing (Sept 2026): by default, traffic flows through a local
+// HEADROOM proxy on 127.0.0.1:8787 so that context compression, semantic
+// caching, and rate limiting are applied uniformly to every extension call.
+// To bypass HEADROOM (e.g. on a machine without it), set MINIMAX_BASE_URL in
+// the VS Code extension-host environment, then Reload Window.
+//
+// Resolution order:
+//   1. process.env.MINIMAX_BASE_URL   (explicit override — wins always)
+//   2. process.env.OPENAI_BASE_URL    (OpenAI SDK convention)
+//   3. http://127.0.0.1:8787/v1       (HEADROOM proxy, default)
+//   4. https://api.minimax.cn/v1      (direct upstream, last-resort fallback)
+//
+// The OpenAI SDK is initialised with an explicit `baseURL` (this value), so it
+// does NOT consult OPENAI_BASE_URL itself — we have to do the resolution here.
+export const MINIMAX_BASE_URL: string =
+  process.env.MINIMAX_BASE_URL ??
+  process.env.OPENAI_BASE_URL ??
+  (process.env.HEADROOM_DISABLED === "1"
+    ? "https://api.minimax.cn/v1"
+    : "http://127.0.0.1:8787/v1");
 
 export function createClient(apiKey: string): OpenAI {
   return new OpenAI({

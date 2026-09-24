@@ -40,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("minimax.setApiKey", async () => {
+    vscode.commands.registerCommand("minimaxcn.setApiKey", async () => {
       const key = await vscode.window.showInputBox({
         prompt: "Enter your MiniMax API key",
         password: true,
